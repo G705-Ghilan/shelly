@@ -1,7 +1,3 @@
-import os
-import shutil
-
-
 from rich.progress import SpinnerColumn
 from rich.progress import TextColumn
 from rich.progress import Progress
@@ -26,5 +22,4 @@ def print_files(files: list) -> None:
 
 def prompet(path: str, addr: tuple, devices: int) -> str:
 	return f"{P[4]}{P[1]*2}( {addr[0]}:{addr[1]} ) ( {devices} devices )\n{P[3]}\n{P[0]}{P[1]*2}( {path} ) > "
-    # return f"\033[31m{P[4]}{P[1]*2}\033[0m(\033[35m {addr[0]}:{addr[1]} \033[0m) ( \033[33m{devices} devices \033[0m)\n\033[31m{P[3]}\n\033[31m{P[0]}{P[1]*2}\033[0m(\033[33m {path} \033[0m) \033[31m> \033[0m"
-
+ 

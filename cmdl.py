@@ -1,5 +1,5 @@
-import cmd
 import os
+import cmd
 import pickle
 
 from typing import List
@@ -66,6 +66,6 @@ class Cmdl(cmd.Cmd):
                     # print(data)
                     f.write(data)
                     r -= gets
-            print("DOne", r)
+            print("# DONE")
         else:
             print(rc["error"])
